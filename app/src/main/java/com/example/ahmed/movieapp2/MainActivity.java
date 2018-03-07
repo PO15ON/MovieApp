@@ -1,10 +1,16 @@
 package com.example.ahmed.movieapp2;
 
+import android.annotation.SuppressLint;
 import android.content.Intent;
 import android.database.Cursor;
 import android.database.sqlite.SQLiteDatabase;
+import android.net.ConnectivityManager;
+import android.net.NetworkInfo;
 import android.net.Uri;
 import android.os.AsyncTask;
+import android.support.v4.app.LoaderManager;
+import android.support.v4.content.AsyncTaskLoader;
+import android.support.v4.content.Loader;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
 import android.support.v7.widget.GridLayoutManager;
@@ -15,8 +21,19 @@ import android.util.Log;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
+import android.widget.AdapterView;
+import android.widget.ArrayAdapter;
 import android.widget.ImageView;
+import android.widget.Spinner;
 import android.widget.TextView;
+import android.widget.Toast;
+
+import com.example.ahmed.movieapp2.ApiServices.ApiClient;
+import com.example.ahmed.movieapp2.ApiServices.ApiInterface;
+import com.example.ahmed.movieapp2.Data.Movies.Movies;
+import com.example.ahmed.movieapp2.Data.Movies.MoviesContract;
+import com.example.ahmed.movieapp2.Data.Movies.Result;
+import com.example.ahmed.movieapp2.Data.Movies.TableData;
 
 import org.json.JSONArray;
 import org.json.JSONException;
@@ -29,75 +46,54 @@ import java.io.InputStreamReader;
 import java.net.HttpURLConnection;
 import java.net.MalformedURLException;
 import java.net.URL;
+import java.util.List;
+
+import retrofit2.Call;
+import retrofit2.Callback;
+import retrofit2.Response;
 
 
-public class MainActivity extends AppCompatActivity implements DataAdapter.ItemClickListener{
+public class MainActivity extends AppCompatActivity implements DataAdapter.ItemClickListener, AdapterView.OnItemSelectedListener {
 
     RecyclerView recyclerView;
+    Spinner spinner;
     DataAdapter dataAdapter;
     String[] titles, dates, details;
-    ImageView imageViews;
     Uri[] images;
-    int imagesLength;
-    double[] ratings;
-    public static final String URL = "http://api.themoviedb.org/3/discover/movie?sort_by=popularity.desc&api_key=d04160312987af22a80ba27b59cd080c";
+    float[] ratings;
+    Integer[] id;
     public static final String TAG = "jsonData";
-
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
+
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
 
+        setTitle("Movies");
+
+        if (!isOnline()) {
+            Toast.makeText(this, "No internet connection", Toast.LENGTH_SHORT).show();
+            return;
+        }
+
+        spinner = findViewById(R.id.spinner);
+        spinner.setOnItemSelectedListener(this);
         recyclerView = findViewById(R.id.rvNumbers);
         int numberOfColumns = calculateNoOfColumns(getApplicationContext());
         recyclerView.setLayoutManager(new GridLayoutManager(this, numberOfColumns));
         recyclerView.setHasFixedSize(true);
         dataAdapter = new DataAdapter();
-//        recyclerView.setAdapter(dataAdapter);
         recyclerView.setAdapter(dataAdapter);
         dataAdapter.setClickListener(this);
 
-//        imageViews = findViewById(R.id.movie_image);
-//        recyclerView.setAdapter(dataAdapter);
+        ArrayAdapter<CharSequence> adapter = ArrayAdapter.createFromResource(this, R.array.sort_by, android.R.layout.simple_spinner_item);
+        adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
+        spinner.setAdapter(adapter);
 
-        /*if favourites button is clicked display favourites movies from SQLite else display all movies*/
-        if (getIntent().getIntExtra("favourites", 0) == 0) {
-            new AsyncMethod().execute();
-        } else {
-            Data db= new Data(this);
-            SQLiteDatabase sqLiteDatabase = db.getReadableDatabase();
-            Cursor cursor = sqLiteDatabase.query(Data.TABLE_NAME, null, null, null, null, null, null);
-
-            if (cursor.getCount() == 0) {
-                new TextView(this).setText("No favourite movies found");
-                return;
-            }
-
-            titles = new String[cursor.getCount()];
-            ratings = new double[cursor.getCount()];
-            images = new Uri[cursor.getCount()];
-            dates = new String[cursor.getCount()];
-            details = new String[cursor.getCount()];
-
-            int i = 0;
-            if (cursor.moveToFirst()) {
-                do {
-                    Log.i(TAG, "onCreate: ratings = " + cursor.getColumnName(cursor.getColumnIndex(Data.COLUMN_RATING)));
-                    Log.i(TAG, "onCreate: title = " + cursor.getColumnName(cursor.getColumnIndex(Data.COLUMN_TITLE)));
-
-                    titles[i] = cursor.getString(cursor.getColumnIndex(Data.COLUMN_TITLE));
-                    ratings[i] = cursor.getDouble(cursor.getColumnIndex(Data.COLUMN_RATING));
-                    images[i] = Uri.parse(cursor.getString(cursor.getColumnIndex(Data.COLUMN_POSTER)));
-                    dates[i] = cursor.getString(cursor.getColumnIndex(Data.COLUMN_DATE));
-                    details[i++] = cursor.getString(cursor.getColumnIndex(Data.COLUMN_OVERVIEW));
-
-                } while (cursor.moveToNext());
-            }
-
-            dataAdapter.setData(images, titles, ratings);
-        }
     }
+
+    
 
     public static int calculateNoOfColumns(Context context) {
         DisplayMetrics displayMetrics = context.getResources().getDisplayMetrics();
@@ -117,160 +113,72 @@ public class MainActivity extends AppCompatActivity implements DataAdapter.ItemC
         intent.putExtra("date", dates[position]);
         intent.putExtra("rating", String.valueOf(ratings[position]));
         intent.putExtra("details", details[position]);
+        intent.putExtra("id", id[position]);
 
         startActivity(intent);
     }
 
-//    public void createJson(final Context context) {
-//        RequestQueue requestQueue = Volley.newRequestQueue(context);
-//        StringRequest stringRequest = new StringRequest(Request.Method.GET, URL, new Response.Listener<String>() {
-//            @Override
-//            public void onResponse(String response) {
-//
-//                try {
-//                    JSONObject jsonObject = new JSONObject(response);
-//                    Log.i(TAG, "getResultsData: jsonObject = " + jsonObject);
-//                    JSONArray results = jsonObject.getJSONArray("results");
+    @Override
+    public void onItemSelected(AdapterView<?> adapterView, View view, int i, long l) {
 
-//
-//                    titles = new String[results.length()];
-//                    ratings = new double[results.length()];
-//                    images = new String[results.length()];
-//
-//                    for(int i=0; i<results.length(); i++) {
-//                        JSONObject object = results.getJSONObject(i);
-//                        String title = object.getString("title");
-//                        double voteAverage = object.getDouble("vote_average");
-//                        String imgUrl = object.getString("poster_path");
-//
-//                        titles[i] = title;
-//                        ratings[i] = voteAverage;
-//
-//                        images[i] = "http://image.tmdb.org/t/p/w500" +imgUrl.substring(imgUrl.indexOf("/"));
-////                        Log.i(TAG, "getResultsData: imgUrls[i] = " + images[i]);
-////            Picasso.with(context).load(images[i]).into((ImageView)R.id.movie_image);
-//                    }
-//
-////                    Log.i(TAG, "createJson: images = " + Arrays.toString(images));
-////                    Log.i(TAG, "onResponse: titles = " + Arrays.toString(titles));
-////                    Log.i(TAG, "onResponse: ratings = " + Arrays.toString(ratings));
-//
-//                    DataAdapter dataAdapter = new DataAdapter();
-//
-//                    dataAdapter.setData(images, titles, ratings);
-//
-//                } catch (JSONException e) {
-//                    e.printStackTrace();
-//                }
-//            }
-//        }, new Response.ErrorListener() {
-//            @Override
-//            public void onErrorResponse(VolleyError error) {
-//                Toast.makeText(context, "Error retrieving JSON data", Toast.LENGTH_SHORT).show();
-//            }
-//        });
-//        requestQueue.add(stringRequest);
-//
-//
-//    }
+        String sortBy = adapterView.getItemAtPosition(i).toString();
 
-    class AsyncMethod extends AsyncTask<Void, Void, Uri[]> {
-        @Override
-        protected Uri[] doInBackground(Void... voids) {
+        ApiInterface apiInterface = ApiClient.getClient().create(ApiInterface.class);
+        Call<Movies> getMovies = apiInterface.getMovies(sortBy, BuildConfig.MOVIES_API_KEY);
+        getMovies.enqueue(new Callback<Movies>() {
+                @Override
+                public void onResponse(Call<Movies> call, Response<Movies> response) {
+//                    Log.i(TAG, "onResponse: " + response);
+//                    Log.i(TAG, "onResponse: results = " + response.body().getResults());
+                    int size = response.body().getResults().size();
+                    List<Result> results = response.body().getResults();
 
-            String response = "";
-            HttpURLConnection urlConnection = null;
-            try {
-                String line = "";
-                java.net.URL url = new URL(URL);
-                urlConnection = (HttpURLConnection) url.openConnection();
+                    id = new Integer[size];
+                    titles = new String[size];
+                    ratings = new float[size];
+                    images = new Uri[size];
+                    dates = new String[size];
+                    details = new String[size];
 
-                urlConnection.connect();
+                    for(int i=0; i<size; i++) {
+                        Integer movieId = results.get(i).getId();
+                        String title = results.get(i).getTitle();
+                        float rating = results.get(i).getVoteAverage();
+                        Uri image = Uri.parse(results.get(i).getPosterPath());
+                        String date = results.get(i).getReleaseDate();
+                        String movieDetails = results.get(i).getOverview();
 
-                InputStream input = url.openStream();
+//                        Log.d(TAG, "onResponse: id = " + movieId + " title = " + title);
 
-                BufferedReader reader = new BufferedReader(new InputStreamReader(input));
+                        id[i] = movieId;
+                        titles[i] = title;
+                        ratings[i] = rating;
+                        images[i] = Uri.parse("http://image.tmdb.org/t/p/w185/" + image);
+                        dates[i] = date;
+                        details[i] = movieDetails;
+                    }
 
-                while ((line = reader.readLine()) != null) {
-                    response = response + line;
+                    dataAdapter.setData(images, titles, ratings);
                 }
 
-            } catch (MalformedURLException e) {
-                e.printStackTrace();
-                Log.i(TAG, "doInBackground: error = " + e);
-            } catch (IOException e) {
-                e.printStackTrace();
-                Log.i(TAG, "doInBackground: error = " + e);
-            }finally {
-                assert urlConnection != null;
-                urlConnection.disconnect();
-            }
-
-            try {
-                JSONObject jsonObject = new JSONObject(response);
-//                Log.i(TAG, "getResultsData: jsonObject = " + jsonObject);
-                JSONArray results = jsonObject.getJSONArray("results");
-
-                titles = new String[results.length()];
-                ratings = new double[results.length()];
-                images = new Uri[results.length()];
-                dates = new String[results.length()];
-                details = new String[results.length()];
-//                imageViews = new ImageView[results.length()];
-                imagesLength = results.length();
-
-                for(int i=0; i<results.length(); i++) {
-//                    imageViews[i] = findViewById(R.id.movie_image);
-                    JSONObject object = results.getJSONObject(i);
-                    String title = object.getString("title");
-
-                    double voteAverage = object.getDouble("vote_average");
-                    String imgUrl = object.getString("poster_path");
-                    String date = object.getString("release_date");
-                    String detail = object.getString("overview");
-
-                    titles[i] = title;
-                    ratings[i] = voteAverage;
-                    dates[i] = date;
-                    details[i] = detail;
-
-                    images[i] = Uri.parse("http://image.tmdb.org/t/p/w185" +imgUrl.substring(imgUrl.indexOf("/")));
-//                    Log.i(TAG, "doInBackground: title = " + titles[i]);
-//                    Log.i(TAG, "doInBackground: rating = " + ratings[i]);
-//                    Log.i(TAG, "getResultsData: imgUrls[i] = " + images[i]);
+                @Override
+                public void onFailure(Call<Movies> call, Throwable t) {
 
                 }
+            });
 
-//                    Log.i(TAG, "createJson: images = " + Arrays.toString(images));
-//                    Log.i(TAG, "onResponse: titles = " + Arrays.toString(titles));
-//                    Log.i(TAG, "onResponse: ratings = " + Arrays.toString(ratings));
-
-//                DataAdapter dataAdapter = new DataAdapter();
+        // On selecting a spinner item
 
 
-//                Log.i(TAG, "doInBackground: data set");
 
-
-            } catch (JSONException e) {
-                e.printStackTrace();
-                Log.i(TAG, "doInBackground: error = " + e);
-            }
-            return images;
-        }
-
-        @Override
-        protected void onPostExecute(Uri[] uris) {
-            dataAdapter.setData(images, titles, ratings);
-//            for(int i=0; i<uris.length; i++) {
-//                imageViews = (ImageView) findViewById(R.id.movie_image);
-//                Log.i(TAG, "onPostExecute: image = " + images[i]);
-//                Log.i(TAG, "onPostExecute: view = " + imageViews);
-//                Picasso.with(MainActivity.this).load(images[i]).into(imageViews);
-//            }
-
-
-        }
     }
+
+    public void onNothingSelected(AdapterView<?> arg0) {
+        // TODO Auto-generated method stub
+
+    }
+
+
 
     @Override
     public boolean onCreateOptionsMenu(Menu menu) {
@@ -286,11 +194,19 @@ public class MainActivity extends AppCompatActivity implements DataAdapter.ItemC
         switch (id) {
             case R.id.favourites:
                 Intent intent;
-                intent = new Intent(this, MainActivity.class);
-                intent.putExtra("favourites", 1);
+                intent = new Intent(this, Favourites.class);
             startActivity(intent);
         }
 
         return super.onOptionsItemSelected(item);
     }
+
+    public boolean isOnline() {
+        ConnectivityManager cm =
+                (ConnectivityManager) getSystemService(Context.CONNECTIVITY_SERVICE);
+        NetworkInfo netInfo = cm.getActiveNetworkInfo();
+        return netInfo != null && netInfo.isConnected();
+    }
+
+
 }

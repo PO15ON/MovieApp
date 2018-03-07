@@ -1,4 +1,4 @@
-package com.example.ahmed.movieapp2;
+package com.example.ahmed.movieapp2.Data.Movies;
 
 import android.content.Context;
 import android.database.sqlite.SQLiteDatabase;
@@ -8,7 +8,7 @@ import android.database.sqlite.SQLiteOpenHelper;
  * Created by Ahmed on 2/15/2018.
  */
 
-public class Data extends SQLiteOpenHelper {
+public class TableData extends SQLiteOpenHelper {
 
     public static final String DATABASE_NAME = "db";
     public static final String TABLE_NAME = "movies";
@@ -18,10 +18,11 @@ public class Data extends SQLiteOpenHelper {
     public static final String COLUMN_OVERVIEW = "movie_overview";
     public static final String COLUMN_DATE = "release_date";
     public static final String COLUMN_RATING = "movie_rating";
+    public static final String COLUMN_MOVIE_ID = "movie_id";
     public static final int VERSION = 1;
 
 
-    public Data(Context context) {
+    public TableData(Context context) {
         super(context, DATABASE_NAME, null, VERSION);
     }
 
@@ -33,6 +34,7 @@ public class Data extends SQLiteOpenHelper {
                 COLUMN_TITLE + " TEXT NOT NULL, " +
                 COLUMN_OVERVIEW + " TEXT NOT NULL, " +
                 COLUMN_DATE + " TEXT NOT NULL, " +
+                COLUMN_MOVIE_ID + " TEXT NOT NULL, " +
                 COLUMN_RATING + " TEXT" + ");";
         sqLiteDatabase.execSQL(CREATE_TABLE);
     }

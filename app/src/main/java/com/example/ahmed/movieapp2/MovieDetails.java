@@ -14,6 +14,8 @@ import android.widget.ImageView;
 import android.widget.TextView;
 import android.widget.Toast;
 
+import com.example.ahmed.movieapp2.Data.Movies.MoviesContract;
+import com.example.ahmed.movieapp2.Data.Movies.TableData;
 import com.squareup.picasso.Picasso;
 
 public class MovieDetails extends AppCompatActivity {
@@ -23,6 +25,9 @@ public class MovieDetails extends AppCompatActivity {
     ImageView image;
     Button favButton;
     Uri imageUri;
+    Integer id;
+    String titleText, dateText, detialsText, imageText, ratingText;
+
 
     @RequiresApi(api = Build.VERSION_CODES.JELLY_BEAN)
     @Override
@@ -37,35 +42,42 @@ public class MovieDetails extends AppCompatActivity {
         image = findViewById(R.id.image_details);
         favButton = findViewById(R.id.fav_button);
 
-        title.setText(getIntent().getStringExtra("title"));
-        rating.setText(getIntent().getStringExtra("rating"));
-        date.setText(getIntent().getStringExtra("date"));
-        details.setText(getIntent().getStringExtra("details"));
-        imageUri = Uri.parse(getIntent().getStringExtra("image"));
+        id = getIntent().getExtras().getInt("id");
+
+        titleText = getIntent().getStringExtra("title");
+        ratingText = getIntent().getStringExtra("rating");
+        dateText = getIntent().getStringExtra("date");
+        detialsText = getIntent().getStringExtra("details");
+        imageText = getIntent().getStringExtra("image");
+
+        title.setText(titleText);
+        rating.setText(ratingText);
+        date.setText(dateText);
+        details.setText(detialsText);
+        imageUri = Uri.parse(imageText);
         Picasso.with(this).load(imageUri).resize(400,500).into(image);
 
+        favButton.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View view) {
 
-            favButton.setOnClickListener(new View.OnClickListener() {
-                @Override
-                public void onClick(View view) {
-                    Data db = new Data(MovieDetails.this);
-                    SQLiteDatabase sqLiteDatabase = db.getWritableDatabase();
 
-                    ContentValues cv = new ContentValues();
-                    cv.put(Data.COLUMN_TITLE, title.getText().toString());
-                    cv.put(Data.COLUMN_DATE, date.getText().toString());
-                    cv.put(Data.COLUMN_OVERVIEW, details.getText().toString());
-                    cv.put(Data.COLUMN_POSTER, imageUri.toString());
-                    cv.put(Data.COLUMN_RATING, rating.getText().toString());
-                    Log.i(TAG, "onClick: cv = " + cv.toString());
+                ContentValues contentValues = new ContentValues();
+                contentValues.put(TableData.COLUMN_TITLE, titleText);
+                contentValues.put(TableData.COLUMN_RATING, ratingText);
+                contentValues.put(TableData.COLUMN_DATE, dateText);
+                contentValues.put(TableData.COLUMN_OVERVIEW, detialsText);
+                contentValues.put(TableData.COLUMN_POSTER, imageText);
+                contentValues.put(TableData.COLUMN_MOVIE_ID, id);
 
-                    sqLiteDatabase.insert(Data.TABLE_NAME, null, cv);
-
-                    Toast.makeText(MovieDetails.this, "Movie added to favourites", Toast.LENGTH_SHORT).show();
+                Uri uri = getContentResolver().insert(MoviesContract.MoviesEntry.CONTENT_URI, contentValues);
+                if (uri != null) {
+                    Log.i(TAG, "onClick: uri = " + uri);
+                } else {
+                    Toast.makeText(MovieDetails.this, "Error", Toast.LENGTH_SHORT).show();
                 }
-            });
-
-
+            }
+        });
 
     }
 }
