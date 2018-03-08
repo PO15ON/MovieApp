@@ -1,51 +1,29 @@
 package com.example.ahmed.movieapp2;
 
-import android.annotation.SuppressLint;
+import android.content.Context;
 import android.content.Intent;
-import android.database.Cursor;
-import android.database.sqlite.SQLiteDatabase;
 import android.net.ConnectivityManager;
 import android.net.NetworkInfo;
 import android.net.Uri;
-import android.os.AsyncTask;
-import android.support.v4.app.LoaderManager;
-import android.support.v4.content.AsyncTaskLoader;
-import android.support.v4.content.Loader;
-import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
+import android.os.Parcelable;
+import android.support.v7.app.AppCompatActivity;
 import android.support.v7.widget.GridLayoutManager;
 import android.support.v7.widget.RecyclerView;
-import android.content.Context;
 import android.util.DisplayMetrics;
-import android.util.Log;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
 import android.widget.AdapterView;
 import android.widget.ArrayAdapter;
-import android.widget.ImageView;
 import android.widget.Spinner;
-import android.widget.TextView;
 import android.widget.Toast;
 
 import com.example.ahmed.movieapp2.ApiServices.ApiClient;
 import com.example.ahmed.movieapp2.ApiServices.ApiInterface;
 import com.example.ahmed.movieapp2.Data.Movies.Movies;
-import com.example.ahmed.movieapp2.Data.Movies.MoviesContract;
 import com.example.ahmed.movieapp2.Data.Movies.Result;
-import com.example.ahmed.movieapp2.Data.Movies.TableData;
 
-import org.json.JSONArray;
-import org.json.JSONException;
-import org.json.JSONObject;
-
-import java.io.BufferedReader;
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.InputStreamReader;
-import java.net.HttpURLConnection;
-import java.net.MalformedURLException;
-import java.net.URL;
 import java.util.List;
 
 import retrofit2.Call;
@@ -55,6 +33,8 @@ import retrofit2.Response;
 
 public class MainActivity extends AppCompatActivity implements DataAdapter.ItemClickListener, AdapterView.OnItemSelectedListener {
 
+    public static final String TAG = "jsonData";
+    public static final String SAVED_LAYOUT_MANAGER = "layoutManager";
     RecyclerView recyclerView;
     Spinner spinner;
     DataAdapter dataAdapter;
@@ -62,7 +42,15 @@ public class MainActivity extends AppCompatActivity implements DataAdapter.ItemC
     Uri[] images;
     float[] ratings;
     Integer[] id;
-    public static final String TAG = "jsonData";
+    GridLayoutManager gridLayoutManager;
+    Parcelable savedRecyclerLayoutState = null;
+
+    public static int calculateNoOfColumns(Context context) {
+        DisplayMetrics displayMetrics = context.getResources().getDisplayMetrics();
+        float dpWidth = displayMetrics.widthPixels / displayMetrics.density;
+        int noOfColumns = (int) (dpWidth / 180);
+        return noOfColumns;
+    }
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -81,7 +69,8 @@ public class MainActivity extends AppCompatActivity implements DataAdapter.ItemC
         spinner.setOnItemSelectedListener(this);
         recyclerView = findViewById(R.id.rvNumbers);
         int numberOfColumns = calculateNoOfColumns(getApplicationContext());
-        recyclerView.setLayoutManager(new GridLayoutManager(this, numberOfColumns));
+        gridLayoutManager = new GridLayoutManager(this, numberOfColumns);
+        recyclerView.setLayoutManager(gridLayoutManager);
         recyclerView.setHasFixedSize(true);
         dataAdapter = new DataAdapter();
         recyclerView.setAdapter(dataAdapter);
@@ -91,21 +80,22 @@ public class MainActivity extends AppCompatActivity implements DataAdapter.ItemC
         adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
         spinner.setAdapter(adapter);
 
+        if (savedInstanceState != null) {
+            savedRecyclerLayoutState = savedInstanceState.getParcelable(SAVED_LAYOUT_MANAGER);
+        }
+
     }
 
-    
+    @Override
+    protected void onSaveInstanceState(Bundle outState) {
+        super.onSaveInstanceState(outState);
 
-    public static int calculateNoOfColumns(Context context) {
-        DisplayMetrics displayMetrics = context.getResources().getDisplayMetrics();
-        float dpWidth = displayMetrics.widthPixels / displayMetrics.density;
-        int noOfColumns = (int) (dpWidth / 180);
-        return noOfColumns;
+        outState.putParcelable(SAVED_LAYOUT_MANAGER, recyclerView.getLayoutManager().onSaveInstanceState());
+
     }
 
     @Override
     public void onItemClick(View view, int position) {
-        // TODO: 2/4/2018 opens the details activity
-//        Log.i("TAG", "onItemClick: item Clicked");
         Intent intent;
         intent = new Intent(MainActivity.this, MovieDetails.class);
         intent.putExtra("title", titles[position]);
@@ -128,8 +118,6 @@ public class MainActivity extends AppCompatActivity implements DataAdapter.ItemC
         getMovies.enqueue(new Callback<Movies>() {
                 @Override
                 public void onResponse(Call<Movies> call, Response<Movies> response) {
-//                    Log.i(TAG, "onResponse: " + response);
-//                    Log.i(TAG, "onResponse: results = " + response.body().getResults());
                     int size = response.body().getResults().size();
                     List<Result> results = response.body().getResults();
 
@@ -148,8 +136,6 @@ public class MainActivity extends AppCompatActivity implements DataAdapter.ItemC
                         String date = results.get(i).getReleaseDate();
                         String movieDetails = results.get(i).getOverview();
 
-//                        Log.d(TAG, "onResponse: id = " + movieId + " title = " + title);
-
                         id[i] = movieId;
                         titles[i] = title;
                         ratings[i] = rating;
@@ -159,6 +145,10 @@ public class MainActivity extends AppCompatActivity implements DataAdapter.ItemC
                     }
 
                     dataAdapter.setData(images, titles, ratings);
+
+                    if (savedRecyclerLayoutState != null) {
+                        recyclerView.getLayoutManager().onRestoreInstanceState(savedRecyclerLayoutState);
+                    }
                 }
 
                 @Override
@@ -167,15 +157,9 @@ public class MainActivity extends AppCompatActivity implements DataAdapter.ItemC
                 }
             });
 
-        // On selecting a spinner item
-
-
-
     }
 
     public void onNothingSelected(AdapterView<?> arg0) {
-        // TODO Auto-generated method stub
-
     }
 
 

@@ -1,6 +1,8 @@
 <resources>
     <string name="app_name">MovieApp2</string>
     <string name="favourites">Favourites</string>
+    <string name="trailers">Trailers:</string>
+    <string name="reviews">Reviews:</string>
 
     <string-array name="sort_by">
         <item>popular</item>

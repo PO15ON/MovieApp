@@ -4,22 +4,18 @@ import android.annotation.SuppressLint;
 import android.content.Intent;
 import android.database.Cursor;
 import android.net.Uri;
+import android.os.Bundle;
 import android.support.v4.app.LoaderManager;
 import android.support.v4.content.AsyncTaskLoader;
 import android.support.v4.content.Loader;
 import android.support.v7.app.AppCompatActivity;
-import android.os.Bundle;
 import android.support.v7.widget.GridLayoutManager;
 import android.support.v7.widget.RecyclerView;
 import android.util.Log;
 import android.view.View;
-import android.widget.AdapterView;
-import android.widget.Spinner;
 
 import com.example.ahmed.movieapp2.Data.Movies.MoviesContract;
 import com.example.ahmed.movieapp2.Data.Movies.TableData;
-
-import java.util.Arrays;
 
 import static com.example.ahmed.movieapp2.MainActivity.calculateNoOfColumns;
 
@@ -39,6 +35,7 @@ public class Favourites extends AppCompatActivity implements LoaderManager.Loade
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_favourites);
         setTitle("Favourites");
+        Log.i(TAG, "onCreate: ");
 
         recyclerView = findViewById(R.id.rvFav);
         int numberOfColumns = calculateNoOfColumns(this);
@@ -48,6 +45,7 @@ public class Favourites extends AppCompatActivity implements LoaderManager.Loade
         recyclerView.setAdapter(dataAdapter);
         dataAdapter.setClickListener(this);
     }
+
 
     @SuppressLint("StaticFieldLeak")
     @Override
@@ -69,7 +67,6 @@ public class Favourites extends AppCompatActivity implements LoaderManager.Loade
             public Cursor loadInBackground() {
 
                 try {
-                    Log.i(TAG, "loadInBackground: ");
                     return getContentResolver().query(MoviesContract.MoviesEntry.CONTENT_URI,
                             null,
                             null,
@@ -92,9 +89,11 @@ public class Favourites extends AppCompatActivity implements LoaderManager.Loade
     @Override
     protected void onResume() {
         super.onResume();
-
+        Log.i(TAG, "onResume: ");
         // re-queries for all tasks
-        getSupportLoaderManager().restartLoader(LOADER_ID, null, this);
+
+        getSupportLoaderManager().initLoader(LOADER_ID, null, this).forceLoad();
+
     }
 
     @Override
@@ -109,17 +108,14 @@ public class Favourites extends AppCompatActivity implements LoaderManager.Loade
         dates = new String[size];
         details = new String[size];
         int i = 0;
-        Log.i(TAG, "onLoadFinished: ");
 
         if (data.moveToFirst()) {
-            Log.i(TAG, "onLoadFinished: start Cursor");
             do {
                 id[i] = Integer.valueOf(data.getString(data.getColumnIndex(TableData.COLUMN_MOVIE_ID)));
                 titles[i] = data.getString(data.getColumnIndex(TableData.COLUMN_TITLE));
                 ratings[i] = Float.parseFloat(data.getString(data.getColumnIndex(TableData.COLUMN_RATING)));
                 images[i] = Uri.parse(data.getString(data.getColumnIndex(TableData.COLUMN_POSTER)));
                 dates[i] = data.getString(data.getColumnIndex(TableData.COLUMN_DATE));
-                Log.i(TAG, "onLoadFinished: id = " + id[i]);
                 details[i++] = data.getString(data.getColumnIndex(TableData.COLUMN_OVERVIEW));
 
             } while (data.moveToNext());
@@ -130,7 +126,7 @@ public class Favourites extends AppCompatActivity implements LoaderManager.Loade
 
     @Override
     public void onLoaderReset(Loader<Cursor> loader) {
-        dataAdapter.setData(null, null, null);
+
         Log.i(TAG, "onLoaderReset: ");
     }
 
@@ -147,4 +143,5 @@ public class Favourites extends AppCompatActivity implements LoaderManager.Loade
 
         startActivity(intent);
     }
+
 }
