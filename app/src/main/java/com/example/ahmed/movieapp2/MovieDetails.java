@@ -3,6 +3,7 @@ package com.example.ahmed.movieapp2;
 import android.content.ContentValues;
 import android.content.Intent;
 import android.database.Cursor;
+import android.database.sqlite.SQLiteDatabase;
 import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
@@ -14,6 +15,7 @@ import android.util.Log;
 import android.view.View;
 import android.widget.Button;
 import android.widget.ImageView;
+import android.widget.ScrollView;
 import android.widget.TextView;
 import android.widget.Toast;
 
@@ -26,15 +28,18 @@ import com.example.ahmed.movieapp2.Data.Movies.Trailers.Result;
 import com.example.ahmed.movieapp2.Data.Movies.Trailers.Trailers;
 import com.squareup.picasso.Picasso;
 
+import java.util.Arrays;
 import java.util.List;
 
 import retrofit2.Call;
 import retrofit2.Callback;
 import retrofit2.Response;
 
+import static com.example.ahmed.movieapp2.MainActivity.SAVED_LAYOUT_MANAGER;
+
 public class MovieDetails extends AppCompatActivity implements Adapter.ItemClickListener {
 
-    private static final String TAG = "ahmed";
+    private static final String TAG = "database";
     TextView title, rating, date, details, trailerName, reviewContent, reviewsText;
     ImageView image;
     Button favButton;
@@ -45,6 +50,7 @@ public class MovieDetails extends AppCompatActivity implements Adapter.ItemClick
     String[] keys, names, authors, contents, reviews;
     Adapter adapter;
     ReviewAdapter reviewAdapter;
+    ScrollView scrollView;
 
 
     @RequiresApi(api = Build.VERSION_CODES.JELLY_BEAN)
@@ -63,6 +69,7 @@ public class MovieDetails extends AppCompatActivity implements Adapter.ItemClick
         trailerName = findViewById(R.id.trailer_name);
         reviewContent = findViewById(R.id.user_review);
         reviewsRecyclerView = findViewById(R.id.reviews_rv);
+        scrollView = findViewById(R.id.scroll_view);
 
         trailerRecyclerView.setLayoutManager(new LinearLayoutManager(this));
         trailerRecyclerView.setHasFixedSize(true);
@@ -74,6 +81,11 @@ public class MovieDetails extends AppCompatActivity implements Adapter.ItemClick
         reviewsRecyclerView.setHasFixedSize(true);
         reviewAdapter = new ReviewAdapter();
         reviewsRecyclerView.setAdapter(reviewAdapter);
+
+        if (savedInstanceState != null) {
+            int pos = savedInstanceState.getInt(SAVED_LAYOUT_MANAGER);
+            scrollView.scrollTo(0, pos);
+        }
 
         id = getIntent().getExtras().getInt("id");
 
@@ -90,25 +102,45 @@ public class MovieDetails extends AppCompatActivity implements Adapter.ItemClick
         imageUri = Uri.parse(imageText);
         Picasso.with(this).load(imageUri).resize(400, 500).into(image);
 
-        Cursor cursor = getContentResolver().query(MoviesContract.MoviesEntry.CONTENT_URI,
+//        Cursor cursor = getContentResolver().query(MoviesContract.MoviesEntry.CONTENT_URI,
+//                null,
+//                null,
+//                null,
+//                null);
+//        Log.d(TAG, "onCreate: cursor = " + cursor.getCount());
+
+        TableData tableData = new TableData(this);
+        SQLiteDatabase sqLiteDatabase = tableData.getReadableDatabase();
+        /*search for title in the database*/
+        Cursor c = getContentResolver().query(MoviesContract.MoviesEntry.CONTENT_URI,
                 null,
-                null,
-                null,
+                TableData.COLUMN_TITLE + "=?",
+                new String[]{titleText},
                 null);
 
-        Log.i(TAG, "onCreate: id = " + cursor.getPosition());
+                    int contentId = 0;
+        Log.d(TAG, "onCreate: c = " + Arrays.toString(c.getColumnNames()));
+        if (c.getCount() != 0) { // title found
 
-        if (cursor.moveToFirst()) {
-            final int contentId = Integer.parseInt(cursor.getString(cursor.getColumnIndex(TableData.COLUMN_ID)));
-            Log.i(TAG, "onCreate: contentId = " + contentId);
+            c.moveToFirst();
+            do {
+                if (c.getString(c.getColumnIndex(TableData.COLUMN_TITLE)).equals(titleText)) {
+                    contentId = c.getInt(c.getColumnIndex(TableData.COLUMN_ID));
+
+                    break;
+                }
+
+            } while (c.moveToNext());
+
             favButton.setText("Remove");
+            final int finalContentId = contentId;
             favButton.setOnClickListener(new View.OnClickListener() {
                 @Override
                 public void onClick(View view) {
-                    getContentResolver().delete(MoviesContract.MoviesEntry.buildFlavorsUri(contentId),
+                    getContentResolver().delete(MoviesContract.MoviesEntry.buildFlavorsUri(finalContentId),
                             TableData.COLUMN_ID + "=?",
-                            new String[]{String.valueOf(contentId)});
-                    getContentResolver().notifyChange(MoviesContract.MoviesEntry.buildFlavorsUri(contentId), null);
+                            new String[]{String.valueOf(finalContentId)});
+                    getContentResolver().notifyChange(MoviesContract.MoviesEntry.buildFlavorsUri(finalContentId), null);
                     favButton.setText("Favourites");
                     Toast.makeText(MovieDetails.this, "Removed from Favourites", Toast.LENGTH_SHORT).show();
                     Intent intent = new Intent(MovieDetails.this, Favourites.class);
@@ -116,6 +148,7 @@ public class MovieDetails extends AppCompatActivity implements Adapter.ItemClick
                     startActivity(intent);
                 }
             });
+
         } else {
             favButton.setOnClickListener(new View.OnClickListener() {
                 @Override
@@ -195,6 +228,14 @@ public class MovieDetails extends AppCompatActivity implements Adapter.ItemClick
 
             }
         });
+    }
+
+    @Override
+    protected void onSaveInstanceState(Bundle outState) {
+        super.onSaveInstanceState(outState);
+
+        outState.putInt(SAVED_LAYOUT_MANAGER, scrollView.getVerticalScrollbarPosition());
+
     }
 
 

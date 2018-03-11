@@ -109,6 +109,7 @@ public class Favourites extends AppCompatActivity implements LoaderManager.Loade
         details = new String[size];
         int i = 0;
 
+        Log.d(TAG, "onLoadFinished: data = " + data.getCount());
         if (data.moveToFirst()) {
             do {
                 id[i] = Integer.valueOf(data.getString(data.getColumnIndex(TableData.COLUMN_MOVIE_ID)));

@@ -90,7 +90,10 @@ public class MainActivity extends AppCompatActivity implements DataAdapter.ItemC
     protected void onSaveInstanceState(Bundle outState) {
         super.onSaveInstanceState(outState);
 
+        if (recyclerView != null) {
+
         outState.putParcelable(SAVED_LAYOUT_MANAGER, recyclerView.getLayoutManager().onSaveInstanceState());
+        }
 
     }
 
